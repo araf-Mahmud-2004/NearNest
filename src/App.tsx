@@ -55,17 +55,25 @@ function AppRoutes() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
 
-  // Detect email confirmation and force sign out
+  // Handle email confirmation
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const type = params.get("type");
+    
     if (type === "signup" || type === "email_confirm") {
-      // Sign out and redirect to login
-      supabase.auth.signOut().then(() => {
+      // Clear the URL parameters to avoid confusion
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+      
+      // If user is not authenticated after email confirmation, redirect to login
+      if (!user) {
         navigate("/auth", { replace: true });
-      });
+      } else {
+        // User is authenticated after email confirmation, redirect to dashboard
+        navigate("/dashboard", { replace: true });
+      }
     }
-  }, [location, navigate]);
+  }, [location, navigate, user]);
 
   // Show loading state while auth is being determined
   if (loading) {

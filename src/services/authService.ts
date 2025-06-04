@@ -48,6 +48,7 @@ export const authService = {
             username: signUpData.username,
             full_name: signUpData.fullName || "",
           },
+          emailRedirectTo: `${window.location.origin}/#/auth?type=signup`,
         },
       });
 
