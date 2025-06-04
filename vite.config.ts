@@ -6,9 +6,11 @@ import path from "path";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
+    base: "/NearNest",
     port: 8080,
   },
   plugins: [react()],
+
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -16,18 +18,22 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     // Optimize build output
-    target: 'esnext',
-    minify: 'esbuild',
-    sourcemap: mode === 'development',
+    target: "esnext",
+    minify: "esbuild",
+    sourcemap: mode === "development",
     rollupOptions: {
       output: {
         // Manual chunk splitting for better caching
         manualChunks: {
-          vendor: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          ui: ['@radix-ui/react-avatar', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
-          supabase: ['@supabase/supabase-js'],
-          utils: ['clsx', 'tailwind-merge', 'date-fns'],
+          vendor: ["react", "react-dom"],
+          router: ["react-router-dom"],
+          ui: [
+            "@radix-ui/react-avatar",
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+          ],
+          supabase: ["@supabase/supabase-js"],
+          utils: ["clsx", "tailwind-merge", "date-fns"],
         },
       },
     },
@@ -37,17 +43,17 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     // Pre-bundle dependencies for faster dev server startup
     include: [
-      'react',
-      'react-dom',
-      'react-router-dom',
-      '@supabase/supabase-js',
-      'lucide-react',
-      'clsx',
-      'tailwind-merge',
+      "react",
+      "react-dom",
+      "react-router-dom",
+      "@supabase/supabase-js",
+      "lucide-react",
+      "clsx",
+      "tailwind-merge",
     ],
   },
   // Enable CSS code splitting
   css: {
-    devSourcemap: mode === 'development',
+    devSourcemap: mode === "development",
   },
 }));
