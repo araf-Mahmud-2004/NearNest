@@ -1,6 +1,5 @@
 {
   "name": "vite_react_shadcn_ts",
-  "homepage": "https://araf-Mahmud-2004.github.io/NearNest",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,8 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "postbuild": "cp dist/index.html dist/404.html"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.0",
