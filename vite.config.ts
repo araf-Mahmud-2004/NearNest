@@ -6,11 +6,10 @@ import path from "path";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    base: "/NearNest",
     port: 8080,
   },
   plugins: [react()],
-
+  base: "/NearNest",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
