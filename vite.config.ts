@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   plugins: [react()],
-  base: process.env.VITE_BASE_PATH || "/NearNest",
+  base: "/NearNest/",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

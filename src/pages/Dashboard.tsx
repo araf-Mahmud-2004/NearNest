@@ -21,21 +21,68 @@ import { ActivityStats } from "@/components/ActivityStats";
 import { RecentActivity } from "@/components/RecentActivity";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useRealTimeUpdates } from "@/hooks/useWebSocket";
-import { postsService, ListingWithProfile, EventWithProfile } from "@/services/postsService";
+import {
+  postsService,
+  ListingWithProfile as ServiceListingWithProfile,
+  EventWithProfile as ServiceEventWithProfile,
+} from "@/services/postsService";
 import { useToast } from "@/hooks/use-toast";
 import { usePosts } from "@/contexts/PostsContext";
 import { RealTimeNotifications } from "@/components/RealTimeNotifications";
+
+// Define local types that match what PostsContext provides
+type DashboardListing = {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  location: string;
+  category: string;
+  image?: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+  profiles?: {
+    username: string;
+    avatar_url: string;
+    full_name: string;
+  } | null;
+};
+
+type DashboardEvent = {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  location: string;
+  category: string;
+  image?: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+  profiles?: {
+    username: string;
+    avatar_url: string;
+    full_name: string;
+  } | null;
+};
 
 const Dashboard = () => {
   const { user, username, profile, loading, profileLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { trackListings, trackEvents } = useRealTimeUpdates();
-  const { listings: allListings, events: allEvents, loading: postsLoading, refreshData } = usePosts();
+  const {
+    listings: allListings,
+    events: allEvents,
+    loading: postsLoading,
+    refreshData,
+  } = usePosts();
 
-  // Real-time state management
-  const [recentListings, setRecentListings] = useState<ListingWithProfile[]>([]);
-  const [upcomingEvents, setUpcomingEvents] = useState<EventWithProfile[]>([]);
+  // Real-time state management - using local types
+  const [recentListings, setRecentListings] = useState<DashboardListing[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<DashboardEvent[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isConnected, setIsConnected] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
@@ -51,8 +98,10 @@ const Dashboard = () => {
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
+    const diffInHours = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+    );
+
     if (diffInHours < 1) return "Just now";
     if (diffInHours < 24) return `${diffInHours} hours ago`;
     const diffInDays = Math.floor(diffInHours / 24);
@@ -62,55 +111,119 @@ const Dashboard = () => {
 
   const formatEventDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
+
+  // Helper function to get display name from simplified profile
+  const getDisplayName = (
+    profile: { username: string; full_name: string } | null
+  ): string => {
+    if (!profile) return "Anonymous";
+    return profile.full_name || profile.username || "Anonymous";
+  };
+
+  // Type adapter functions to convert PostsContext data to local types
+  const adaptListings = useCallback((listings: any[]): DashboardListing[] => {
+    if (!listings) return [];
+    return listings.map((listing) => ({
+      id: listing.id,
+      title: listing.title,
+      description: listing.description,
+      price: listing.price,
+      location: listing.location,
+      category: listing.category,
+      image: listing.image,
+      user_id: listing.user_id,
+      created_at: listing.created_at,
+      updated_at: listing.updated_at,
+      profiles: listing.profiles
+        ? {
+            username: listing.profiles.username || "",
+            avatar_url: listing.profiles.avatar_url || "",
+            full_name: listing.profiles.full_name || "",
+          }
+        : null,
+    }));
+  }, []);
+
+  const adaptEvents = useCallback((events: any[]): DashboardEvent[] => {
+    if (!events) return [];
+    return events.map((event) => ({
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      date: event.date,
+      time: event.time,
+      location: event.location,
+      category: event.category,
+      image: event.image,
+      user_id: event.user_id,
+      created_at: event.created_at,
+      updated_at: event.updated_at,
+      profiles: event.profiles
+        ? {
+            username: event.profiles.username || "",
+            avatar_url: event.profiles.avatar_url || "",
+            full_name: event.profiles.full_name || "",
+          }
+        : null,
+    }));
+  }, []);
 
   // Process data from PostsContext
   const processData = useCallback(() => {
     try {
       setIsLoadingData(true);
-      
+
       // Process listings
       if (allListings && allListings.length > 0) {
-        const recentListingsData = allListings.slice(0, 5); // Get latest 5
+        const adaptedListings = adaptListings(allListings);
+        const recentListingsData = adaptedListings.slice(0, 5); // Get latest 5
         setRecentListings(recentListingsData);
-        setCommunityStats(prev => ({ ...prev, activeListings: allListings.length }));
+        setCommunityStats((prev) => ({
+          ...prev,
+          activeListings: allListings.length,
+        }));
       } else {
         setRecentListings([]);
-        setCommunityStats(prev => ({ ...prev, activeListings: 0 }));
+        setCommunityStats((prev) => ({ ...prev, activeListings: 0 }));
       }
 
       // Process events
       if (allEvents && allEvents.length > 0) {
+        const adaptedEvents = adaptEvents(allEvents);
         // Filter for upcoming events
         const now = new Date();
-        const upcomingEventsData = allEvents
-          .filter(event => new Date(event.date) >= now)
+        const upcomingEventsData = adaptedEvents
+          .filter((event) => new Date(event.date) >= now)
           .slice(0, 5); // Get next 5 upcoming events
         setUpcomingEvents(upcomingEventsData);
-        
+
         // Count events for this week
         const weekEnd = new Date();
         weekEnd.setDate(weekEnd.getDate() + 7);
-        const weeklyEventsCount = allEvents.filter(event => {
+        const weeklyEventsCount = adaptedEvents.filter((event) => {
           const eventDate = new Date(event.date);
           return eventDate >= now && eventDate <= weekEnd;
         }).length;
-        setCommunityStats(prev => ({ ...prev, weeklyEvents: weeklyEventsCount }));
+        setCommunityStats((prev) => ({
+          ...prev,
+          weeklyEvents: weeklyEventsCount,
+        }));
       } else {
         setUpcomingEvents([]);
-        setCommunityStats(prev => ({ ...prev, weeklyEvents: 0 }));
+        setCommunityStats((prev) => ({ ...prev, weeklyEvents: 0 }));
       }
 
       setLastUpdate(new Date());
       setIsConnected(true);
     } catch (error) {
-      console.error('Error processing data:', error);
+      console.error("Error processing data:", error);
       setIsConnected(false);
     } finally {
       setIsLoadingData(false);
     }
-  }, [allListings, allEvents]);
+  }, [allListings, allEvents, adaptListings, adaptEvents]);
 
   // Data refresh function that only refreshes content, not auth
   const handleRefreshData = useCallback(async () => {
@@ -122,7 +235,7 @@ const Dashboard = () => {
         description: "Dashboard content has been updated",
       });
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.error("Error refreshing data:", error);
       toast({
         title: "Refresh failed",
         description: "Failed to refresh dashboard data",
@@ -161,8 +274,6 @@ const Dashboard = () => {
   const handleViewAllEvents = () => {
     navigate("/events");
   };
-
-  
   // Effects
   useEffect(() => {
     if (!loading && !user) {
@@ -239,7 +350,7 @@ const Dashboard = () => {
                   <WifiOff className="h-4 w-4 text-red-500" />
                 )}
                 <span className="text-xs text-muted-foreground">
-                  {isConnected ? 'Live' : 'Disconnected'}
+                  {isConnected ? "Live" : "Disconnected"}
                 </span>
               </div>
               {/* Last update time */}
@@ -254,7 +365,9 @@ const Dashboard = () => {
                 disabled={isLoadingData}
                 className="h-8 w-8 p-0"
               >
-                <Activity className={`h-4 w-4 ${isLoadingData ? 'animate-spin' : ''}`} />
+                <Activity
+                  className={`h-4 w-4 ${isLoadingData ? "animate-spin" : ""}`}
+                />
               </Button>
             </div>
           </div>
@@ -305,7 +418,9 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-white">Create Event</h3>
-                  <p className="text-sm text-white/80 dark:text-white/90">Host something</p>
+                  <p className="text-sm text-white/80 dark:text-white/90">
+                    Host something
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -414,7 +529,10 @@ const Dashboard = () => {
                     {isLoadingData ? (
                       <div className="space-y-4">
                         {[...Array(3)].map((_, i) => (
-                          <div key={i} className="flex items-center space-x-4 p-4 rounded-lg animate-pulse">
+                          <div
+                            key={i}
+                            className="flex items-center space-x-4 p-4 rounded-lg animate-pulse"
+                          >
                             <div className="w-16 h-16 bg-gray-200 rounded-lg"></div>
                             <div className="flex-1 space-y-2">
                               <div className="h-4 bg-gray-200 rounded w-3/4"></div>
@@ -432,11 +550,15 @@ const Dashboard = () => {
                           onClick={() => navigate(`/listings`)}
                         >
                           <img
-                            src={listing.image || "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=100&h=100&fit=crop"}
+                            src={
+                              listing.image ||
+                              "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=100&h=100&fit=crop"
+                            }
                             alt={listing.title}
                             className="w-16 h-16 object-cover rounded-lg"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=100&h=100&fit=crop";
+                              (e.target as HTMLImageElement).src =
+                                "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=100&h=100&fit=crop";
                             }}
                           />
                           <div className="flex-1 min-w-0">
@@ -458,7 +580,7 @@ const Dashboard = () => {
                               </span>
                               {listing.profiles && (
                                 <span className="text-xs text-muted-foreground">
-                                  by {postsService.getDisplayName(listing.profiles)}
+                                  by {getDisplayName(listing.profiles)}
                                 </span>
                               )}
                             </div>
@@ -468,7 +590,9 @@ const Dashboard = () => {
                     ) : (
                       <div className="text-center py-8">
                         <List className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground">No recent listings found</p>
+                        <p className="text-muted-foreground">
+                          No recent listings found
+                        </p>
                         <Button
                           variant="outline"
                           size="sm"
@@ -515,7 +639,10 @@ const Dashboard = () => {
                 {isLoadingData ? (
                   <div className="space-y-3">
                     {[...Array(3)].map((_, i) => (
-                      <div key={i} className="p-3 rounded-lg border border-border animate-pulse">
+                      <div
+                        key={i}
+                        className="p-3 rounded-lg border border-border animate-pulse"
+                      >
                         <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
                         <div className="flex justify-between">
                           <div className="h-3 bg-gray-200 rounded w-1/3"></div>
@@ -545,7 +672,7 @@ const Dashboard = () => {
                       </div>
                       {event.profiles && (
                         <div className="mt-1 text-xs text-muted-foreground">
-                          by {postsService.getDisplayName(event.profiles)}
+                          by {getDisplayName(event.profiles)}
                         </div>
                       )}
                     </div>
@@ -553,7 +680,9 @@ const Dashboard = () => {
                 ) : (
                   <div className="text-center py-6">
                     <Calendar className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground mb-2">No upcoming events</p>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      No upcoming events
+                    </p>
                     <Button
                       variant="outline"
                       size="sm"
@@ -588,7 +717,10 @@ const Dashboard = () => {
                 {isLoadingData ? (
                   <div className="space-y-4">
                     {[...Array(3)].map((_, i) => (
-                      <div key={i} className="flex items-center justify-between">
+                      <div
+                        key={i}
+                        className="flex items-center justify-between"
+                      >
                         <div className="h-4 bg-gray-200 rounded w-1/2"></div>
                         <div className="h-4 bg-gray-200 rounded w-8"></div>
                       </div>
@@ -597,7 +729,9 @@ const Dashboard = () => {
                 ) : (
                   <>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Active Listings</span>
+                      <span className="text-sm text-gray-600">
+                        Active Listings
+                      </span>
                       <span className="font-semibold text-primary">
                         {communityStats.activeListings}
                       </span>
